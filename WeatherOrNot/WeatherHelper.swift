@@ -48,43 +48,15 @@ class WeatherHelper {
   }
   
   func getWeather(atLatitude latitude: Double, longitude: Double) -> Promise<WeatherInfo> {
-    return Promise { seal in
-      let url = makeURL(atLatitude: latitude, longitude: longitude)
-      let dataTask = makeURLSessionDataTask(with: url, seal: seal)
-      dataTask.resume()
-    }
-  }
-  
-  private func makeURLSessionDataTask(with url: URL, seal: (Resolver<WeatherHelper.WeatherInfo>)) -> URLSessionDataTask {
-    let dataTask = URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
-      guard let `self` = self else { return }
-      
-      guard let data = data else {
-        assertionFailure("Can't receive data from url <\(url.absoluteString)>.")
-        let networkError = self.makeNetworkError()
-        seal.reject(error ?? networkError)
-        return
-      }
-      
-      guard let result = try? JSONDecoder().decode(WeatherInfo.self, from: data) else {
-        assertionFailure("Can't decode data received from url <\(url.absoluteString)> to WeatherInfo struct.")
-        let networkError = self.makeNetworkError()
-        seal.reject(error ?? networkError)
-        return
-      }
-      
-      seal.fulfill(result)
-    }
+    let url = makeURL(atLatitude: latitude, longitude: longitude)
     
-    return dataTask
+    return firstly {
+      URLSession.shared.dataTask(.promise, with: url)
+      }.compactMap {
+        return try JSONDecoder().decode(WeatherInfo.self, from: $0.data)
+    }
   }
-  
-  private func makeNetworkError() -> NSError {
-    let domain = "NetworkError"
-    let userInfo = [NSLocalizedDescriptionKey: "Network error"]
-    return NSError(domain: domain, code: 0, userInfo: userInfo)
-  }
-  
+
   private func makeURLstring(atLatitude latitude: Double, longitude: Double) -> String {
     let urlString = "http://api.openweathermap.org/data/2.5/weather?lat=\(latitude)&lon=\(longitude)&appid=\(appID)"
     return urlString
