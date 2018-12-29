@@ -78,11 +78,6 @@ class WeatherViewController: UIViewController {
       }
   }
   
-  private func handleMockLocation() {
-    let coordinate = CLLocationCoordinate2DMake(37.966667, 23.716667)
-    handleLocation(city: "Athens", state: "Greece", coordinate: coordinate)
-  }
-  
   private func handleLocation(placemark: CLPlacemark) {
     handleLocation(city: placemark.locality,
                    state: placemark.administrativeArea,
