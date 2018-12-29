@@ -46,23 +46,58 @@ class WeatherHelper {
   struct Temperature: Codable {
     let temp: Double
   }
-
-  func getWeatherTheOldFashionedWay(coordinate: CLLocationCoordinate2D, completion: @escaping (WeatherInfo?, Error?) -> Void) {
-    let urlString = "http://api.openweathermap.org/data/2.5/weather?lat=\(coordinate.latitude)&lon=\(coordinate.longitude)&appid=\(appID)"
-
-    guard let url = URL(string: urlString) else {
-      preconditionFailure("Failed creating API URL - Make sure you set your OpenWeather API Key")
+  
+  func getWeather(atLatitude latitude: Double, longitude: Double) -> Promise<WeatherInfo> {
+    return Promise { seal in
+      let url = makeURL(atLatitude: latitude, longitude: longitude)
+      let dataTask = makeURLSessionDataTask(with: url, seal: seal)
+      dataTask.resume()
     }
-
-    URLSession.shared.dataTask(with: url) { data, _, error in
-      guard let data = data,
-            let result = try? JSONDecoder().decode(WeatherInfo.self, from: data) else {
-        completion(nil, error)
+  }
+  
+  private func makeURLSessionDataTask(with url: URL, seal: (Resolver<WeatherHelper.WeatherInfo>)) -> URLSessionDataTask {
+    let dataTask = URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+      guard let `self` = self else { return }
+      
+      guard let data = data else {
+        assertionFailure("Can't receive data from url <\(url.absoluteString)>.")
+        let networkError = self.makeNetworkError()
+        seal.reject(error ?? networkError)
         return
       }
       
-      completion(result, nil)
-    }.resume()
+      guard let result = try? JSONDecoder().decode(WeatherInfo.self, from: data) else {
+        assertionFailure("Can't decode data received from url <\(url.absoluteString)> to WeatherInfo struct.")
+        let networkError = self.makeNetworkError()
+        seal.reject(error ?? networkError)
+        return
+      }
+      
+      seal.fulfill(result)
+    }
+    
+    return dataTask
+  }
+  
+  private func makeNetworkError() -> NSError {
+    let domain = "NetworkError"
+    let userInfo = [NSLocalizedDescriptionKey: "Network error"]
+    return NSError(domain: domain, code: 0, userInfo: userInfo)
+  }
+  
+  private func makeURLstring(atLatitude latitude: Double, longitude: Double) -> String {
+    let urlString = "http://api.openweathermap.org/data/2.5/weather?lat=\(latitude)&lon=\(longitude)&appid=\(appID)"
+    return urlString
+  }
+  
+  private func makeURL(atLatitude latitude: Double, longitude: Double) -> URL {
+    let urlString = makeURLstring(atLatitude: latitude, longitude: longitude)
+    if let url = URL(string: urlString) {
+      return url
+    }
+    else {
+      fatalError("Can't make URL from <\(urlString)>. Won't create URL.")
+    }
   }
   
   private func saveFile(named: String, data: Data, completion: @escaping (Error?) -> Void) {
@@ -93,4 +128,5 @@ class WeatherHelper {
       }
     }
   }
+  
 }

@@ -69,23 +69,40 @@ class WeatherViewController: UIViewController {
                    coordinate: placemark.location!.coordinate)
   }
   
-  private func handleLocation(city: String?,
-                              state: String?,
-                              coordinate: CLLocationCoordinate2D) {
-    if let city = city,
-       let state = state {
+  private func handleLocation_(city: String?, state: String?, coordinate: CLLocationCoordinate2D) {
+    if let city = city, let state = state {
+      self.placeLabel.text = "\(city), \(state)"
+    }
+    
+    weatherAPI.getWeather(atLatitude: coordinate.latitude, longitude: coordinate.longitude)
+      .done { [weak self] weatherInfo in
+        self?.updateUI(with: weatherInfo)
+      }
+      .catch { [weak self] error in
+        guard let `self` = self else { return }
+        
+        self.tempLabel.text = "--"
+        self.conditionLabel.text = error.localizedDescription
+        self.conditionLabel.textColor = errorColor
+    }
+  }
+  
+  private func handleLocation(city: String?, state: String?, coordinate: CLLocationCoordinate2D) {
+    if let city = city, let state = state {
       placeLabel.text = "\(city), \(state)"
     }
-
-    weatherAPI.getWeatherTheOldFashionedWay(coordinate: coordinate) { weatherInfo, error in
-      guard let weatherInfo = weatherInfo else {
-        self.tempLabel.text = "--"
-        self.conditionLabel.text = error?.localizedDescription ?? "--"
-        return
+    
+    let promise = weatherAPI.getWeather(atLatitude: coordinate.latitude, longitude: coordinate.longitude)
+    promise
+      .done { [weak self] info in
+        self?.updateUI(with: info)
       }
-
-      self.updateUI(with: weatherInfo)
-    }
+      .catch { [weak self] error in
+        guard let `self` = self else { return }
+        self.tempLabel.text = "--"
+        self.conditionLabel.text = error.localizedDescription
+        self.conditionLabel.textColor = errorColor
+      }
   }
   
   private func updateUI(with weatherInfo: WeatherHelper.WeatherInfo) {
