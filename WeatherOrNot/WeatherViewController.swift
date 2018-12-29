@@ -92,8 +92,15 @@ class WeatherViewController: UIViewController {
     let promise = weatherAPI.getWeather(atLatitude: coordinate.latitude,
                                         longitude: coordinate.longitude)
     promise
-      .done { [weak self] info in
-        self?.updateUI(with: info)
+      .then { [weak self] info -> Promise<UIImage> in
+        guard let `self` = self else { return brokenPromise() }
+        self.updateUI(with: info)
+        
+        guard let iconName = info.weather.first?.icon else { return brokenPromise() }
+        return self.weatherAPI.getIcon(named: iconName)
+      }
+      .done(on: DispatchQueue.main) { [weak self] icon in
+        self?.iconImageView.image = icon
       }
       .catch { [weak self] error in
         guard let `self` = self else { return }
