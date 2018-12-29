@@ -56,7 +56,7 @@ class WeatherHelper {
         return try JSONDecoder().decode(WeatherInfo.self, from: $0.data)
     }
   }
-
+  
   private func makeURLstring(atLatitude latitude: Double, longitude: Double) -> String {
     let urlString = "http://api.openweathermap.org/data/2.5/weather?lat=\(latitude)&lon=\(longitude)&appid=\(appID)"
     return urlString
@@ -109,17 +109,25 @@ extension WeatherHelper {
   // MARK: - Internal methods
   
   func getIcon(named iconName: String) -> Promise<UIImage> {
-    let url = makeURL(for: iconName)
-    return firstly {
-        URLSession.shared.dataTask(.promise, with: url)
+    return Promise<UIImage> {
+        getFile(named: iconName, completion: $0.resolve)
       }
-      .then(on: DispatchQueue.global(qos: .background)) { response in
-        return Promise.value(UIImage(data: response.data) ?? UIImage())
+      .recover { [weak self] _ in
+        return self?.getIconFromNetwork(named: iconName) ?? Promise.value(UIImage())
       }
   }
   
   // MARK: - Private methods
   
+  private func getIconFromNetwork(named iconName: String) -> Promise<UIImage> {
+    let url = makeURL(for: iconName)
+    return firstly {
+      URLSession.shared.dataTask(.promise, with: url)
+      }
+      .then(on: DispatchQueue.global(qos: .background)) { response in
+        return Promise.value(UIImage(data: response.data) ?? UIImage())
+    }
+  }
   private func makeURLString(for iconName: String) -> String {
     let urlString = "http://openweathermap.org/img/w/\(iconName).png"
     return urlString
