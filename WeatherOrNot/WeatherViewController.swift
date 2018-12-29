@@ -129,8 +129,40 @@ class WeatherViewController: UIViewController {
   }
   
   @IBAction func showRandomWeather(_ sender: AnyObject) {
-
+    randomWeatherButton.isEnabled = false
+    
+    let weatherPromises = randomCities.map { weatherAPI.getWeather(atLatitude: $0.2, longitude: $0.3) }
+    
+    UIApplication.shared.isNetworkActivityIndicatorVisible = true
+    
+    race(weatherPromises)
+      .then { [weak self] info -> Promise<UIImage> in
+        guard let `self` = self else { return brokenPromise() }
+        
+        self.placeLabel.text = info.name
+        self.updateUI(with: info)
+        
+        guard let iconName = info.weather.first?.icon else { return brokenPromise() }
+        
+        return self.weatherAPI.getIcon(named: iconName)
+      }
+      .done { [weak iconImageView] icon in
+        assert(iconImageView != nil, "iconImageView expected to be acquired.")
+        iconImageView?.image = icon
+      }
+      .catch {  [weak self] error in
+        guard let `self` = self else { return }
+        self.tempLabel.text = "--"
+        self.conditionLabel.text = error.localizedDescription
+        self.conditionLabel.textColor = errorColor
+      }
+      .finally { [weak randomWeatherButton] in
+        UIApplication.shared.isNetworkActivityIndicatorVisible = false
+        assert(randomWeatherButton != nil, "randomWeatherButton expected to be acquired.")
+        randomWeatherButton?.isEnabled = true
+      }
   }
+
 }
 
 // MARK: - UITextFieldDelegate
