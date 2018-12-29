@@ -89,6 +89,8 @@ class WeatherViewController: UIViewController {
       placeLabel.text = "\(city), \(state)"
     }
     
+    UIApplication.shared.isNetworkActivityIndicatorVisible = true
+    
     let promise = weatherAPI.getWeather(atLatitude: coordinate.latitude,
                                         longitude: coordinate.longitude)
     promise
@@ -108,6 +110,9 @@ class WeatherViewController: UIViewController {
         self.conditionLabel.text = error.localizedDescription
         self.conditionLabel.textColor = errorColor
       }
+      .finally {
+        UIApplication.shared.isNetworkActivityIndicatorVisible = false
+    }
   }
   
   private func updateUI(with weatherInfo: WeatherHelper.WeatherInfo) {
