@@ -102,3 +102,38 @@ class WeatherHelper {
   }
   
 }
+
+// Retrieve Icon
+extension WeatherHelper {
+  
+  // MARK: - Internal methods
+  
+  func getIcon(named iconName: String) -> Promise<UIImage> {
+    let url = makeURL(for: iconName)
+    return firstly {
+        URLSession.shared.dataTask(.promise, with: url)
+      }
+      .then(on: DispatchQueue.global(qos: .background)) { response in
+        return Promise.value(UIImage(data: response.data) ?? UIImage())
+      }
+  }
+  
+  // MARK: - Private methods
+  
+  private func makeURLString(for iconName: String) -> String {
+    let urlString = "http://openweathermap.org/img/w/\(iconName).png"
+    return urlString
+  }
+  
+  private func makeURL(for iconName: String) -> URL {
+    let urlString = makeURLString(for: iconName)
+    if let url = URL(string: urlString) {
+      return url
+    }
+    else {
+      fatalError("Can't make URL from <\(urlString)>. Won't create URL.")
+    }
+  }
+  
+  
+}

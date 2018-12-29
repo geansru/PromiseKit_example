@@ -55,7 +55,27 @@ class WeatherViewController: UIViewController {
   }
   
   private func updateWithCurrentLocation() {
-    handleMockLocation()
+    let promise = locationHelper.getLocation()
+    promise
+      .done { [weak self] in
+        self?.handleLocation(placemark: $0)
+      }
+      .catch { [weak self] error in
+        guard let `self` = self else { return }
+        
+        self.tempLabel.text = "--"
+        self.placeLabel.text = "--"
+        
+        switch error {
+        case is CLError where (error as? CLError)?.code == .denied:
+          self.conditionLabel.text = "Enable location permissions in Settings"
+          self.conditionLabel.textColor = .white
+          
+        default:
+          self.conditionLabel.text = error.localizedDescription
+          self.conditionLabel.textColor = errorColor
+        }
+      }
   }
   
   private func handleMockLocation() {
@@ -69,30 +89,13 @@ class WeatherViewController: UIViewController {
                    coordinate: placemark.location!.coordinate)
   }
   
-  private func handleLocation_(city: String?, state: String?, coordinate: CLLocationCoordinate2D) {
-    if let city = city, let state = state {
-      self.placeLabel.text = "\(city), \(state)"
-    }
-    
-    weatherAPI.getWeather(atLatitude: coordinate.latitude, longitude: coordinate.longitude)
-      .done { [weak self] weatherInfo in
-        self?.updateUI(with: weatherInfo)
-      }
-      .catch { [weak self] error in
-        guard let `self` = self else { return }
-        
-        self.tempLabel.text = "--"
-        self.conditionLabel.text = error.localizedDescription
-        self.conditionLabel.textColor = errorColor
-    }
-  }
-  
   private func handleLocation(city: String?, state: String?, coordinate: CLLocationCoordinate2D) {
     if let city = city, let state = state {
       placeLabel.text = "\(city), \(state)"
     }
     
-    let promise = weatherAPI.getWeather(atLatitude: coordinate.latitude, longitude: coordinate.longitude)
+    let promise = weatherAPI.getWeather(atLatitude: coordinate.latitude,
+                                        longitude: coordinate.longitude)
     promise
       .done { [weak self] info in
         self?.updateUI(with: info)
@@ -125,12 +128,16 @@ class WeatherViewController: UIViewController {
 
 // MARK: - UITextFieldDelegate
 extension WeatherViewController: UITextFieldDelegate {
+  
   func textFieldShouldReturn(_ textField: UITextField) -> Bool {
     textField.resignFirstResponder()
-    guard let _ = textField.text else { return false }
-
-    handleMockLocation()
-
+    guard let text = textField.text else { return false }
+    
+    locationHelper.searchForPlacemark(text)
+      .done { placemark in self.handleLocation(placemark: placemark) }
+      .catch { _ in }
+    
     return true
   }
+  
 }

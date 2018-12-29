@@ -31,9 +31,17 @@ import CoreLocation
 import PromiseKit
 
 class LocationHelper {
-  let coder = CLGeocoder()
+  
+  private let coder = CLGeocoder()
   
   func getLocation() -> Promise<CLPlacemark> {
-    return brokenPromise()
+    return CLLocationManager.requestLocation().lastValue.then { [unowned coder] location in
+      return coder.reverseGeocode(location: location).firstValue
+    }
   }
+  
+  func searchForPlacemark(_ placemark: String) -> Promise<CLPlacemark> {
+    return coder.geocode(placemark).firstValue
+  }
+  
 }
